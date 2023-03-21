@@ -98,3 +98,7 @@ foreach ($machine in $machines) {
     }
 }
 
+# Export the results to a CSV file
+$results | Export-Csv -Path "ClientStatusReport.csv" -NoTypeInformation
+
+Write-Host "Client status report generated: ClientStatusReport.csv"
