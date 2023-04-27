@@ -16,8 +16,11 @@ $headers = @{
     "X-Cisco-Meraki-API-Key" = $apiKey
 }
 
-# Loop until the script is stopped
-while ($true) {
+# Create a flag to control the loop
+$continueLoop = $true
+
+# Loop until the original path becomes available again
+while ($continueLoop) {
     try {
         # Make the API request
         $response = Invoke-RestMethod -Uri $url -Headers $headers
@@ -36,18 +39,14 @@ while ($true) {
             New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex 1 -NextHop $originalPath
         }
 
-        # Loop until the original path becomes available again
-        while ($true) {
-            # Determine if the original path is available
-            $pingResult = Test-Connection -ComputerName $originalPath -Count 1 -Quiet
+        # Determine if the original path is available
+        $pingResult = Test-Connection -ComputerName $originalPath -Count 1 -Quiet
 
-            # If the original path is available, switch back to it and exit the loop
-            if ($pingResult) {
-                # Set the new route in the routing table
-                New-NetRoute -DestinationPrefix "0.0.0.0/0" -InterfaceIndex 1 -NextHop $originalPath
-                break
-            }
-
+        # If the original path is available, exit the loop
+        if ($pingResult) {
+            $continueLoop = $false
+        }
+        else {
             # Wait for a short period before checking again
             Start-Sleep -Seconds 5
         }
