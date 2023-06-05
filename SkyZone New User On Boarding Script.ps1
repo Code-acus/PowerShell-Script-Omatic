@@ -6,6 +6,20 @@ try {
     Exit 1
 }
 
+# Check if MSOnline module is installed, if not install it
+if (!(Get-Module -ListAvailable -Name MSOnline)) {
+    Write-Host "MSOnline module not found. Installing..."
+    Install-Module -Name MSOnline -Confirm:$false -Force
+}
+
+# Import MSOnline module
+try {
+    Import-Module MSOnline
+} catch {
+    Write-Host "Error importing MSOnline module" -ForegroundColor Red
+    Exit 1
+}
+
 # Function to create user
 function Create-MS365User($userPrincipalName, $displayName) {
     try {
@@ -83,10 +97,13 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK)
             Create-MS365User "general.manager@<TenantId>.onmicrosoft.com" "General Manager"
         }
         "Assistant General Manager" {
-            Create-MS365User "assistant.general.manager@<TenantId>.onmicrosoft.com" "Assistant General Manager"
+            Create-MS365User "assistant.gm@<TenantId>.onmicrosoft.com" "Assistant General Manager"
         }
         "Franchisee" {
             Create-MS365User "franchisee@<TenantId>.onmicrosoft.com" "Franchisee"
+        }
+        default {
+            Write-Host "No matching user category found" -ForegroundColor Red
         }
     }
 }
