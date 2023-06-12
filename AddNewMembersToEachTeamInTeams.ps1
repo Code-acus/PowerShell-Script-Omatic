@@ -31,7 +31,7 @@ Catch {
 write-host -f Red "Error:" $_.Exception.Message
 }
 
-# The script has a varable called $TeamsListPath points to the "teamslist.csv" 
+# The script has a variable called $TeamsListPath points to the "teamslist.csv" 
 # file and the $AddMemberListPath variable points to the "AddMemberList.csv" file. 
 # The script reads in the teams from "teamslist.csv" and the users to be added from "AddMemberList.csv". 
 # It then iterates through each team from the CSV and adds each user to the team. 
