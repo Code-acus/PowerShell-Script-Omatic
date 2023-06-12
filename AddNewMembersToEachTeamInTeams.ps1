@@ -31,13 +31,14 @@ Catch {
 write-host -f Red "Error:" $_.Exception.Message
 }
 
-# In this modified script, the $TeamsListPath variable points to the "teamslist.csv" 
+# The script has a varable called $TeamsListPath points to the "teamslist.csv" 
 # file and the $AddMemberListPath variable points to the "AddMemberList.csv" file. 
 # The script reads in the teams from "teamslist.csv" and the users to be added from "AddMemberList.csv". 
 # It then iterates through each team from the CSV and adds each user to the team. 
 # The output now displays the email address of the user being added and the display name of the team they are being added to.
 
-# This PowerShell script is designed to add users to Microsoft Teams groups by reading the team IDs and user details from two CSV files. Let's break down how this script works and what each line of code does.
+# This PowerShell script is designed to add users to Microsoft Teams groups by reading the team IDs and user details from two CSV files. 
+# Let's break down how this script works and what each line of code does.
 
 # #Parameters
 # $TeamsListPath = "C:\Temp\teamslist.csv"
