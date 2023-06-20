@@ -61,9 +61,7 @@
         Add to Park group
         Add to Jump and Events Shared Mailbox - Park Inbox
         Add to Park SharePoint
-#>
-
-# Check if the MSOnline module is installed, and if not, install it
+#># Check if the MSOnline module is installed, if not, install it
 if (-not (Get-Module -ListAvailable -Name MSOnline)) {
     if (-not (Get-Module -ListAvailable -Name PowerShellGet)) {
         # PowerShellGet module is not installed, exit with an error
@@ -79,62 +77,21 @@ if (-not (Get-Module -ListAvailable -Name MSOnline)) {
 # Import the MSOnline module
 Import-Module -Name MSOnline -Force
 
+# Get credentials for Azure AD
+$cred = Get-Credential -Message "Enter your Azure AD credentials"
+
+# Connect to Azure AD
+Connect-MsolService -Credential $cred
+
 # Create a new form
 $userForm = New-Object System.Windows.Forms.Form
 $userForm.Text = 'Create User'
 $userForm.Size = New-Object System.Drawing.Size(300, 200)
 $userForm.StartPosition = 'CenterScreen'
 
-$okButton = New-Object System.Windows.Forms.Button
-$okButton.Location = New-Object System.Drawing.Point(10, 170)
-$okButton.Size = New-Object System.Drawing.Size(75, 23)
-$okButton.Text = 'OK'
-$okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-$userForm.AcceptButton = $okButton
-$userForm.Controls.Add($okButton)
-
-$cancelButton = New-Object System.Windows.Forms.Button
-$cancelButton.Location = New-Object System.Drawing.Point(100, 170)
-$cancelButton.Size = New-Object System.Drawing.Size(75, 23)
-$cancelButton.Text = 'Cancel'
-$cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
-$userForm.CancelButton = $cancelButton
-$userForm.Controls.Add($cancelButton)
-
-$selectUserButton = New-Object System.Windows.Forms.Button
-$selectUserButton.Location = New-Object System.Drawing.Point(190, 170)
-$selectUserButton.Size = New-Object System.Drawing.Size(100, 23)
-$selectUserButton.Text = 'Select User'
-$selectUserButton.Add_Click({
-    # Confirm if the tech is certain
-    $confirmationResult = [System.Windows.Forms.MessageBox]::Show("Are you certain you want to create this user?", "Confirmation", [System.Windows.Forms.MessageBoxButtons]::YesNo)
-
-    if ($confirmationResult -eq 'Yes') {
-        $startScriptForm = New-Object System.Windows.Forms.Form
-        $startScriptForm.Text = 'Start Script'
-        $startScriptForm.Size = New-Object System.Drawing.Size(300, 200)
-        $startScriptForm.StartPosition = 'CenterScreen'
-
-        $startScriptButton = New-Object System.Windows.Forms.Button
-        $startScriptButton.Location = New-Object System.Drawing.Point(10, 170)
-        $startScriptButton.Size = New-Object System.Drawing.Size(100, 23)
-        $startScriptButton.Text = 'Start Script'
-        $startScriptButton.Add_Click({
-            # Start the creation process
-            Start-UserCreation $categoryDropdown.SelectedItem.ToString()
-            $startScriptForm.Close()
-            $startScriptForm.Dispose()
-        })
-        $startScriptForm.Controls.Add($startScriptButton)
-        $startScriptForm.ShowDialog()
-    }
-})
-$userForm.Controls.Add($selectUserButton)
-
 # Instantiate $firstNameBox, $lastNameBox, and $categoryDropdown according to your requirements
 $firstNameBox = New-Object System.Windows.Forms.TextBox
 $firstNameBox.Location = New-Object System.Drawing.Point(10, 10)
-# Continue from the creation of form elements
 $firstNameBox.Size = New-Object System.Drawing.Size(100, 20)
 $userForm.Controls.Add($firstNameBox)
 
@@ -146,115 +103,174 @@ $userForm.Controls.Add($lastNameBox)
 $categoryDropdown = New-Object System.Windows.Forms.ComboBox
 $categoryDropdown.Location = New-Object System.Drawing.Point(10, 40)
 $categoryDropdown.Size = New-Object System.Drawing.Size(210, 20)
+
 # Add your desired categories to the dropdown list
-$categoryDropdown.Items.Add("AGM")
-$categoryDropdown.Items.Add("GM")
-$categoryDropdown.Items.Add("Franchise Users")
-$categoryDropdown.Items.Add("New Corporate Users")
-$categoryDropdown.Items.Add("Corporate SkyZone Users")
-$categoryDropdown.Items.Add("SkyZone GMs")
+$categoryDropdown.Items.AddRange(@("AGM", "GM", "Franchise Users", "New Corporate Users", "Corporate SkyZone Users", "SkyZone GMs"))
 $categoryDropdown.SelectedIndex = 0
 $userForm.Controls.Add($categoryDropdown)
 
-# Prompt for admin credentials
-$credentials = Get-Credential
+$okButton = New-Object System.Windows.Forms.Button
+$okButton.Location = New-Object System.Drawing.Point(10, 170)
+$okButton.Size = New-Object System.Drawing.Size(75, 23)
+$okButton.Text = 'OK'
+$userForm.Controls.Add($okButton)
 
-# Connect to AzureAD
-Connect-AzureAD -Credential $credentials
+$resetButton = New-Object System.Windows.Forms.Button
+$resetButton.Location = New-Object System.Drawing.Point(100, 170)
+$resetButton.Size = New-Object System.Drawing.Size(75, 23)
+$resetButton.Text = 'Reset'
+$userForm.Controls.Add($resetButton)
 
-# Define user types and associated licenses and properties
-$categories = @{
-    "AGM" = @{
-        "License" = "MS 365 Business Basic"
-        "JobTitle" = "AGM"
-        "Department" = "O&O Operations"
-        "Groups" = @("AGM Security Group", "Assistant General Managers")
-    }
-    "GM" = @{
-        "License" = "Business Premium"
-        "JobTitle" = "GM"
-        "Department" = "O&O Operations"
-        "Groups" = @("GM Security Group", "Skyzone Operators Group")
-    }
-    "Franchise Users" = @{
-        "License" = "Exchange Online Plan 1"
-        "JobTitle" = "Franchise Team Member"
-        "Department" = "Sky Zone Franchise"
-        "Groups" = @("Park Group")
-    }
-    "New Corporate Users" = @{
-        "License" = "MS 365 Business Basic"
-        "JobTitle" = "Corporate Team Member"
-        "Department" = "Sky Zone Corporate"
-        "Groups" = @("Corporate Team Members")
-    }
-}
-
-# Show dialog
-$userForm.Topmost = $true
-$userForm.ShowDialog()
-
-# Create a function for the user creation process
-function Start-UserCreation($category) {
+# Event handler for the OK button click
+$okButton.Add_Click({
+    $category = $categoryDropdown.SelectedItem.ToString()
     $firstName = $firstNameBox.Text
     $lastName = $lastNameBox.Text
 
-    $email = "$firstName.$lastName@skyzone.com"
-    $displayName = "$firstName $lastName"
-    $license = $categories[$category]["License"]
-    $jobTitle = $categories[$category]["JobTitle"]
-    $department = $categories[$category]["Department"]
-    $groups = $categories[$category]["Groups"]
+    $confirmationForm = New-Object System.Windows.Forms.Form
+    $confirmationForm.Text = 'Confirmation'
+    $confirmationForm.Size = New-Object System.Drawing.Size(300, 200)
+    $userForm.StartPosition = 'CenterScreen'
 
-    # Call function to create user
-    $user = Create-AzureADUser -userPrincipalName $email -displayName $displayName -license $license -jobTitle $jobTitle -department $department -groups $groups
+# Instantiate $firstNameBox, $lastNameBox, and $categoryDropdown according to your requirements
+$firstNameBox = New-Object System.Windows.Forms.TextBox
+$firstNameBox.Location = New-Object System.Drawing.Point(10, 10)
+$firstNameBox.Size = New-Object System.Drawing.Size(100, 20)
+$userForm.Controls.Add($firstNameBox)
 
-    # Show the user's temporary password
-    $password = $user.Password
-    $message = "The user $($user.UserPrincipalName) has been created with the temporary password: $password"
+$lastNameBox = New-Object System.Windows.Forms.TextBox
+$lastNameBox.Location = New-Object System.Drawing.Point(120, 10)
+$lastNameBox.Size = New-Object System.Drawing.Size(100, 20)
+$userForm.Controls.Add($lastNameBox)
 
-    # Show a dialog box with user creation report
-    [System.Windows.Forms.MessageBox]::Show($message, "User Created")
-}
+$categoryDropdown = New-Object System.Windows.Forms.ComboBox
+$categoryDropdown.Location = New-Object System.Drawing.Point(10, 40)
+$categoryDropdown.Size = New-Object System.Drawing.Size(210, 20)
 
-# Function to create user
-function Create-AzureADUser($userPrincipalName, $displayName, $license, $jobTitle, $department, $groups) {
-    # User creation parameters
-    $userParams = @{
-        "UserPrincipalName" = $userPrincipalName
-        "DisplayName" = $displayName
-        "AccountEnabled" = $true
-        "PasswordProfile" = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
-    }
-    $userParams.PasswordProfile.Password = "TemporaryPassword1"  # Please replace this with a real temporary password
-    $userParams.PasswordProfile.ForceChangePasswordNextLogin = $true
+# Add your desired categories to the dropdown list
+$categoryDropdown.Items.AddRange(@("AGM", "GM", "Franchise Users", "New Corporate Users", "Corporate SkyZone Users", "SkyZone GMs"))
+$categoryDropdown.SelectedIndex = 0
+$userForm.Controls.Add($categoryDropdown)
 
-    # Create the user
-    $user = New-AzureADUser @userParams
+$okButton = New-Object System.Windows.Forms.Button
+$okButton.Location = New-Object System.Drawing.Point(10, 170)
+$okButton.Size = New-Object System.Drawing.Size(75, 23)
+$okButton.Text = 'OK'
+$userForm.Controls.Add($okButton)
 
-    # Assign license
-    $licenseObject = New-Object -TypeName Microsoft.Open.AzureAD.Model.AssignedLicense
-    $licenseObject.SkuId = (Get-AzureADSubscribedSku | Where-Object -Property SkuPartNumber -Value $license -EQ).SkuId
-    $licenseAssignment = New-Object -TypeName Microsoft.Open.AzureAD.Model.AssignedLicenses
-    $licenseAssignment.AddLicenses = $licenseObject
+$resetButton = New-Object System.Windows.Forms.Button
+$resetButton.Location = New-Object System.Drawing.Point(100, 170)
+$resetButton.Size = New-Object System.Drawing.Size(75, 23)
+$resetButton.Text = 'Reset'
+$userForm.Controls.Add($resetButton)
 
-    # Set license, job title, and department
-    Set-AzureADUser -ObjectId $user.ObjectId -AssignedLicenses $licenseAssignment -JobTitle $jobTitle -Department $department
+# Event handler for the OK button click
+$okButton.Add_Click({
+    $category = $categoryDropdown.SelectedItem.ToString()
+    $firstName = $firstNameBox.Text
+    $lastName = $lastNameBox.Text
 
-    # Add user to groups
-    foreach ($group in $groups) {
-        Add-AzureADGroupMember -ObjectId (Get-AzureADGroup -SearchString $group).ObjectId -RefObjectId $user.ObjectId
-    }
+    $confirmationForm = New-Object System.Windows.Forms.Form
+    $confirmationForm.Text = 'Confirmation'
+    $confirmationForm.Size = New-Object System.Drawing.Size(300, 200)
+    $confirmationForm.StartPosition = 'CenterScreen'
 
-    # Return the user and their temporary password
-    return @{
-        "UserPrincipalName" = $user.UserPrincipalName
-        "Password" = $userParams.PasswordProfile.Password
-    }
-}
+    $confirmationLabel = New-Object System.Windows.Forms.Label
+    $confirmationLabel.Location = New-Object System.Drawing.Point(10, 20)
+    $confirmationLabel.Size = New-Object System.Drawing.Size(280, 120)
+    $confirmationLabel.Text = "Are you sure you want to create the user with these details:`nFirst Name: $firstName`nLast Name: $lastName`nUser Type: $category"
+    $confirmationForm.Controls.Add($confirmationLabel)
 
-# Trigger the user form
-$userForm.ShowDialog() | Out-Null
+    $yesButton = New-Object System.Windows.Forms.Button
+    $yesButton.Location = New-Object System.Drawing.Point(10, 140)
+    $yesButton.Size = New-Object System.Drawing.Size(75, 23)
+    $yesButton.Text = 'Yes'
+    $yesButton.Add_Click({
+        $confirmationForm.Close()
+
+        $runScriptForm = New-Object System.Windows.Forms.Form
+        $runScriptForm.Text = 'Run Script'
+        $runScriptForm.Size = New-Object System.Drawing.Size(300, 150)
+        $runScriptForm.StartPosition = 'CenterScreen'
+
+        $runScriptLabel = New-Object System.Windows.Forms.Label
+        $runScriptLabel.Location = New-Object System.Drawing.Point(10, 20)
+        $runScriptLabel.Size = New-Object System.Drawing.Size(280, 60)
+        $runScriptLabel.Text = "Press OK to run the script and create the user with these details:`nFirst Name: $firstName`nLast Name: $lastName`nUser Type: $category"
+
+        $yesButton.Add_Click({
+            $confirmationForm.Close()
+        
+            $runScriptForm = New-Object System.Windows.Forms.Form
+            $runScriptForm.Text = 'Run Script'
+            $runScriptForm.Size = New-Object System.Drawing.Size(300, 150)
+            $runScriptForm.StartPosition = 'CenterScreen'
+        
+            $runScriptLabel = New-Object System.Windows.Forms.Label
+            $runScriptLabel.Location = New-Object System.Drawing.Point(10, 20)
+            $runScriptLabel.Size = New-Object System.Drawing.Size(280, 60)
+            $runScriptLabel.Text = "Press OK to run the script and create the user"
+            $runScriptForm.Controls.Add($runScriptLabel)
+        
+            $runScriptOkButton = New-Object System.Windows.Forms.Button
+            $runScriptOkButton.Location = New-Object System.Drawing.Point(100, 100)
+            $runScriptOkButton.Size = New-Object System.Drawing.Size(75, 23)
+            $runScriptOkButton.Text = 'OK'
+            $runScriptOkButton.Add_Click({
+                $runScriptForm.Close()
+        
+                # Trim any spaces from first and last names for email
+                $firstName = $firstName.Trim()
+                $lastName = $lastName.Trim()
+        
+                # User creation code
+                $email = "$firstName.$lastName@skyzone.com"
+                $displayName = "$firstName $lastName"
+                
+                # You should replace the following placeholder with your own user creation commands
+                # This is a dummy line, you need to include a way to create a secure random password and update the password variable.
+                $password = 'YourGeneratedPassword' 
+        
+                # Create the user
+                New-MsolUser -UserPrincipalName $email -DisplayName $displayName -FirstName $firstName -LastName $lastName -Password $password
+        
+                Write-Host "User created with email: $email"
+            })
+            $runScriptForm.Controls.Add($runScriptOkButton)
+        
+            [void]$runScriptForm.ShowDialog()
+        })
+        
+        $noButton = New-Object System.Windows.Forms.Button
+        $noButton.Location = New-Object System.Drawing.Point(100, 140)
+        $noButton.Size = New-Object System.Drawing.Size(75, 23)
+        $noButton.Text = 'No'
+        $noButton.Add_Click({
+            $confirmationForm.Close()
+        
+            # Reset the form
+            $firstNameBox.Text = ""
+            $lastNameBox.Text = ""
+            $categoryDropdown.SelectedIndex = 0
+        })
+        $confirmationForm.Controls.Add($noButton)
+        
+        [void]$confirmationForm.ShowDialog()
+        
+        })
+        
+        # Event handler for the Reset button click
+        $resetButton.Add_Click({
+            # Reset the form
+            $firstNameBox.Text = ""
+            $lastNameBox.Text = ""
+            $categoryDropdown.SelectedIndex = 0
+        })
+        
+        $userForm.ShowDialog()
+        
+
+
 
 
 
