@@ -131,11 +131,11 @@ $okButton.Add_Click({
     $confirmationLabel.Text = "Are you sure you want to create the user with these details:`nFirst Name: $firstName`nLast Name: $lastName`nUser Type: $category"
     $confirmationForm.Controls.Add($confirmationLabel)
 
-    $yesButton = New-Object System.Windows.Forms.Button
-    $yesButton.Location = New-Object System.Drawing.Point(10, 140)
-    $yesButton.Size = New-Object System.Drawing.Size(75, 23)
-    $yesButton.Text = 'Yes'
-    $yesButton.Add_Click({
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Location = New-Object System.Drawing.Point(10, 140)
+    $okButton.Size = New-Object System.Drawing.Size(75, 23)
+    $okButton.Text = 'OK'
+    $okButton.Add_Click({
         $confirmationForm.Close()
 
         $runScriptForm = New-Object System.Windows.Forms.Form
@@ -156,52 +156,21 @@ $okButton.Add_Click({
         $runScriptOkButton.Add_Click({
             $runScriptForm.Close()
 
-            $runScriptConfirmationForm = New-Object System.Windows.Forms.Form
-            $runScriptConfirmationForm.Text = 'Confirmation'
-            $runScriptConfirmationForm.Size = New-Object System.Drawing.Size(300, 200)
-            $runScriptConfirmationForm.StartPosition = 'CenterScreen'
+            # Trim any spaces from first and last names for email
+            $firstName = $firstName.Trim()
+            $lastName = $lastName.Trim()
 
-            $runScriptConfirmationLabel = New-Object System.Windows.Forms.Label
-            $runScriptConfirmationLabel.Location = New-Object System.Drawing.Point(10, 20)
-            $runScriptConfirmationLabel.Size = New-Object System.Drawing.Size(280, 120)
-            $runScriptConfirmationLabel.Text = "Are you sure you want to run the script and create the user?"
-            $runScriptConfirmationForm.Controls.Add($runScriptConfirmationLabel)
+            # User creation code
+            $email = "$firstName.$lastName@skyzone.com"
+            $displayName = "$firstName $lastName"
 
-            $runScriptYesButton = New-Object System.Windows.Forms.Button
-            $runScriptYesButton.Location = New-Object System.Drawing.Point(10, 140)
-            $runScriptYesButton.Size = New-Object System.Drawing.Size(75, 23)
-            $runScriptYesButton.Text = 'Yes'
-            $runScriptYesButton.Add_Click({
-                $runScriptConfirmationForm.Close()
+            # Generate a random password for the user
+            $password = Generate-RandomPassword -Length 10
 
-                # Trim any spaces from first and last names for email
-                $firstName = $firstName.Trim()
-                $lastName = $lastName.Trim()
+            # Create the user
+            New-MsolUser -UserPrincipalName $email -DisplayName $displayName -FirstName $firstName -LastName $lastName -Password $password
 
-                # User creation code
-                $email = "$firstName.$lastName@skyzone.com"
-                $displayName = "$firstName $lastName"
-
-                # Generate a random password for the user
-                $password = Generate-RandomPassword -Length 10
-
-                # Create the user
-                New-MsolUser -UserPrincipalName $email -DisplayName $displayName -FirstName $firstName -LastName $lastName -Password $password
-
-                Write-Host "User created with email: $email"
-            })
-            $runScriptConfirmationForm.Controls.Add($runScriptYesButton)
-
-            $runScriptNoButton = New-Object System.Windows.Forms.Button
-            $runScriptNoButton.Location = New-Object System.Drawing.Point(100, 140)
-            $runScriptNoButton.Size = New-Object System.Drawing.Size(75, 23)
-            $runScriptNoButton.Text = 'No'
-            $runScriptNoButton.Add_Click({
-                $runScriptConfirmationForm.Close()
-            })
-            $runScriptConfirmationForm.Controls.Add($runScriptNoButton)
-
-            [void]$runScriptConfirmationForm.ShowDialog()
+            Write-Host "User created with email: $email"
         })
         $runScriptForm.Controls.Add($runScriptOkButton)
 
@@ -216,6 +185,7 @@ $okButton.Add_Click({
 
         [void]$runScriptForm.ShowDialog()
     })
+    $confirmationForm.Controls.Add($okButton)
 
     $noButton = New-Object System.Windows.Forms.Button
     $noButton.Location = New-Object System.Drawing.Point(100, 140)
@@ -228,6 +198,9 @@ $okButton.Add_Click({
         $firstNameBox.Text = ""
         $lastNameBox.Text = ""
         $categoryDropdown.SelectedIndex = 0
+
+        # Show the user creation form again
+        $userForm.ShowDialog()
     })
     $confirmationForm.Controls.Add($noButton)
 
@@ -262,6 +235,9 @@ function Generate-RandomPassword {
 
 # Run the user creation form
 [void]$userForm.ShowDialog()
+
+
+
 
 <#
 
