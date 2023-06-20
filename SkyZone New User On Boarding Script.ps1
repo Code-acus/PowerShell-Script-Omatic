@@ -101,9 +101,40 @@ $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
 $userForm.CancelButton = $cancelButton
 $userForm.Controls.Add($cancelButton)
 
+$selectUserButton = New-Object System.Windows.Forms.Button
+$selectUserButton.Location = New-Object System.Drawing.Point(190, 170)
+$selectUserButton.Size = New-Object System.Drawing.Size(100, 23)
+$selectUserButton.Text = 'Select User'
+$selectUserButton.Add_Click({
+    # Confirm if the tech is certain
+    $confirmationResult = [System.Windows.Forms.MessageBox]::Show("Are you certain you want to create this user?", "Confirmation", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+
+    if ($confirmationResult -eq 'Yes') {
+        $startScriptForm = New-Object System.Windows.Forms.Form
+        $startScriptForm.Text = 'Start Script'
+        $startScriptForm.Size = New-Object System.Drawing.Size(300, 200)
+        $startScriptForm.StartPosition = 'CenterScreen'
+
+        $startScriptButton = New-Object System.Windows.Forms.Button
+        $startScriptButton.Location = New-Object System.Drawing.Point(10, 170)
+        $startScriptButton.Size = New-Object System.Drawing.Size(100, 23)
+        $startScriptButton.Text = 'Start Script'
+        $startScriptButton.Add_Click({
+            # Start the creation process
+            Start-UserCreation $categoryDropdown.SelectedItem.ToString()
+            $startScriptForm.Close()
+            $startScriptForm.Dispose()
+        })
+        $startScriptForm.Controls.Add($startScriptButton)
+        $startScriptForm.ShowDialog()
+    }
+})
+$userForm.Controls.Add($selectUserButton)
+
 # Instantiate $firstNameBox, $lastNameBox, and $categoryDropdown according to your requirements
 $firstNameBox = New-Object System.Windows.Forms.TextBox
 $firstNameBox.Location = New-Object System.Drawing.Point(10, 10)
+# Continue from the creation of form elements
 $firstNameBox.Size = New-Object System.Drawing.Size(100, 20)
 $userForm.Controls.Add($firstNameBox)
 
@@ -159,40 +190,14 @@ $categories = @{
     }
 }
 
-# Function to create user
-function Create-AzureADUser($userPrincipalName, $displayName, $license, $jobTitle, $department, $groups) {
-    # Generate a random password
-    $password = [System.Web.Security.Membership]::GeneratePassword(12, 3)
-
-    # Create a password profile
-    $passwordProfile = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
-    $passwordProfile.Password = $password
-    $passwordProfile.ForceChangePasswordNextSignIn = $true
-
-    # Create a user
-    $newUser = New-AzureADUser -UserPrincipalName $userPrincipalName -DisplayName $displayName -PasswordProfile $passwordProfile -UsageLocation "US"
-
-    # Set user properties
-    Set-AzureADUser -ObjectId $newUser.ObjectId -Title $jobTitle -Department $department
-
-    # Add the user to the specified groups
-    foreach ($group in $groups) {
-        Add-AzureADGroupMember -ObjectId $group -RefObjectId $newUser.ObjectId
-    }
-
-    # Return the user with the temporary password
-    $newUser | Select-Object UserPrincipalName, Password
-}
-
 # Show dialog
 $userForm.Topmost = $true
+$userForm.ShowDialog()
 
-$result = $userForm.ShowDialog()
-
-if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+# Create a function for the user creation process
+function Start-UserCreation($category) {
     $firstName = $firstNameBox.Text
     $lastName = $lastNameBox.Text
-    $category = $categoryDropdown.SelectedItem.ToString()
 
     $email = "$firstName.$lastName@skyzone.com"
     $displayName = "$firstName $lastName"
@@ -201,62 +206,55 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
     $department = $categories[$category]["Department"]
     $groups = $categories[$category]["Groups"]
 
-    # Check if the preferred license is available, if not, fallback to alternative license
-    if (!(Get-AzureADSubscribedSku | Where-Object { $_.SkuPartNumber -eq $license })) {
-        if ($category -eq "Corporate SkyZone Users" -or $category -eq "SkyZone GMs") {
-            $license = "Office 365 E3"
-        }
-    }
-
-    # Create the user
+    # Call function to create user
     $user = Create-AzureADUser -userPrincipalName $email -displayName $displayName -license $license -jobTitle $jobTitle -department $department -groups $groups
 
     # Show the user's temporary password
-    $userForm.Close()
-    $userForm.Dispose()
-
     $password = $user.Password
     $message = "The user $($user.UserPrincipalName) has been created with the temporary password: $password"
 
-    # Show the user's temporary password
-    $passwordForm = New-Object System.Windows.Forms.Form
-    $passwordForm.Text = 'User Created'
-    $passwordForm.Size = New-Object System.Drawing.Size(300, 200)
-    $passwordForm.StartPosition = 'CenterScreen'
-    $passwordForm.Topmost = $true
-
-    $passwordLabel = New-Object System.Windows.Forms.Label
-    $passwordLabel.Location = New-Object System.Drawing.Point(10, 20)
-    $passwordLabel.Size = New-Object System.Drawing.Size(280, 20)
-    $passwordLabel.Text = 'Temporary Password:'
-    $passwordForm.Controls.Add($passwordLabel)
-
-    $passwordBox = New-Object System.Windows.Forms.TextBox
-    $passwordBox.Location = New-Object System.Drawing.Point(10, 40)
-    $passwordBox.Size = New-Object System.Drawing.Size(260, 20)
-    $passwordBox.Text = $password
-    $passwordBox.ReadOnly = $true
-    $passwordForm.Controls.Add($passwordBox)
-
-    $okButton = New-Object System.Windows.Forms.Button
-    $okButton.Location = New-Object System.Drawing.Point(10, 170)
-    $okButton.Size = New-Object System.Drawing.Size(75, 23)
-    $okButton.Text = 'OK'
-    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
-    $passwordForm.AcceptButton = $okButton
-    $passwordForm.Controls.Add($okButton)
-
-    $passwordForm.ShowDialog()
-    $passwordForm.Dispose()
+    # Show a dialog box with user creation report
+    [System.Windows.Forms.MessageBox]::Show($message, "User Created")
 }
 
-if ($result -eq [System.Windows.Forms.DialogResult]::Cancel) {
-    $userForm.Close()
-    $userForm.Dispose()
+# Function to create user
+function Create-AzureADUser($userPrincipalName, $displayName, $license, $jobTitle, $department, $groups) {
+    # User creation parameters
+    $userParams = @{
+        "UserPrincipalName" = $userPrincipalName
+        "DisplayName" = $displayName
+        "AccountEnabled" = $true
+        "PasswordProfile" = New-Object -TypeName Microsoft.Open.AzureAD.Model.PasswordProfile
+    }
+    $userParams.PasswordProfile.Password = "TemporaryPassword1"  # Please replace this with a real temporary password
+    $userParams.PasswordProfile.ForceChangePasswordNextLogin = $true
+
+    # Create the user
+    $user = New-AzureADUser @userParams
+
+    # Assign license
+    $licenseObject = New-Object -TypeName Microsoft.Open.AzureAD.Model.AssignedLicense
+    $licenseObject.SkuId = (Get-AzureADSubscribedSku | Where-Object -Property SkuPartNumber -Value $license -EQ).SkuId
+    $licenseAssignment = New-Object -TypeName Microsoft.Open.AzureAD.Model.AssignedLicenses
+    $licenseAssignment.AddLicenses = $licenseObject
+
+    # Set license, job title, and department
+    Set-AzureADUser -ObjectId $user.ObjectId -AssignedLicenses $licenseAssignment -JobTitle $jobTitle -Department $department
+
+    # Add user to groups
+    foreach ($group in $groups) {
+        Add-AzureADGroupMember -ObjectId (Get-AzureADGroup -SearchString $group).ObjectId -RefObjectId $user.ObjectId
+    }
+
+    # Return the user and their temporary password
+    return @{
+        "UserPrincipalName" = $user.UserPrincipalName
+        "Password" = $userParams.PasswordProfile.Password
+    }
 }
 
-# Disconnect from AzureAD
-Disconnect-AzureAD
+# Trigger the user form
+$userForm.ShowDialog() | Out-Null
 
 
 
