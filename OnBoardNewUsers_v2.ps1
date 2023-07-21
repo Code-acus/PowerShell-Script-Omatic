@@ -1,9 +1,9 @@
 # Import the needed modules
-Import-Module AzureAD
-Import-Module MSOnline
+Import-Module AzureAD -ErrorAction Stop
+Import-Module AzureADPreview -ErrorAction Stop
 
 # Prompt for Office 365 Global Admin
-$UserCredential = Get-Credential
+$UserCredential = Get-Credential -Message "Enter your Office 365 Global Admin credentials" -UserName "admin@yourdomain.com"
 
 # Connect to Azure AD using the Global Admin account
 Connect-AzureAD -Credential $UserCredential
@@ -115,7 +115,7 @@ $okButton.Add_Click({
         $displayName = "$firstName $lastName"
 
         # Create the user
-        New-MsolUser -UserPrincipalName $email -DisplayName $displayName -FirstName $firstName -LastName $lastName -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd" -Force) 
+        New-MsolUser -UserPrincipalName $email -DisplayName $displayName -FirstName $firstName -LastName $lastName -Password  (ConvertTo-SecureString -AsPlainText "P@ssw0rd" -Force) 
         -ForceChangePassword $true
 
         # Set the user properties
