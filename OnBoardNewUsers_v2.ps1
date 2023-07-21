@@ -30,10 +30,15 @@ $userForm.Controls.Add($lastNameBox)
 $categoryDropdown = New-Object System.Windows.Forms.ComboBox
 $categoryDropdown.Location = New-Object System.Drawing.Point(10, 40)
 $categoryDropdown.Size = New-Object System.Drawing.Size(210, 20)
+# Clean users in the array below:
 $categoryDropdown.Items.AddRange(@("AGM", "GM", "Franchise Users", "New Corporate Users", "Corporate SkyZone Users", "SkyZone GMs"))
 $categoryDropdown.SelectedIndex = 0
 $userForm.Controls.Add($categoryDropdown)
 
+# Contains three components: Label, TextBox, and Button
+# Two text boxes for first and last name
+# A combo box for the user category
+# A button to create the user
 $okButton = New-Object System.Windows.Forms.Button
 $okButton.Location = New-Object System.Drawing.Point(10, 170)
 $okButton.Size = New-Object System.Drawing.Size(75, 23)
